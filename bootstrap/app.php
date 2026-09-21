@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.identify' => \App\Http\Middleware\IdentifyTenant::class,
             'tenant.active' => \App\Http\Middleware\EnsureTenantActive::class,
             'plan.limit' => \App\Http\Middleware\EnforcePlanLimits::class,
+            'super_admin' => \App\Http\Middleware\SuperAdminOnly::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

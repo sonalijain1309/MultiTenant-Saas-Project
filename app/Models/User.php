@@ -70,6 +70,27 @@ class User extends Authenticatable
         return $this->role === UserRole::TENANT_OWNER;
     }
 
+    public function isManager(): bool
+    {
+        return $this->role === UserRole::MANAGER;
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->role === UserRole::STAFF;
+    }
+
+    public function canManageUsers(): bool
+    {
+        return $this->role->canManageTenantUsers();
+    }
+
+    public function belongsToTenant(Tenant|int $tenant): bool
+    {
+        $tenantId = $tenant instanceof Tenant ? $tenant->id : $tenant;
+        return $this->tenant_id === $tenantId;
+    }
+
     public function hasRole(UserRole|string $role): bool
     {
         $roleValue = $role instanceof UserRole ? $role->value : $role;

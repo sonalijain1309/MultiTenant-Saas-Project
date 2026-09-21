@@ -21,6 +21,61 @@ An enterprise-grade, single-database **Multi-Tenant Software-as-a-Service (SaaS)
 
 ---
 
+## Authentication & Role-Based Access Control (RBAC)
+
+The platform provides a complete authentication and authorization system using **Laravel Sanctum** and native Laravel **Policies and Gates**.
+
+### 1. Middleware Pipeline & Execution Order
+
+When a client makes a protected request, the pipeline evaluates in strict sequence:
+
+```
+[Incoming Request]
+        ↓
+1. auth:sanctum        → Authenticates Bearer token and binds authenticated User
+        ↓
+2. tenant.identify     → Resolves User's assigned tenant into TenantContext singleton.
+                         SECURITY: If a tenant user provides an X-Tenant-ID header that 
+                         does not match their assigned tenant, execution halts with 403.
+        ↓
+3. tenant.active       → Verifies tenant operational status (ACTIVE/TRIALING allowed; 
+                         SUSPENDED/CANCELED rejected with 403).
+                         Platform Super Admins without a tenant context bypass this check.
+        ↓
+4. Policies / Controller → Granular role and resource authorization checks execute.
+```
+
+### 2. Role Definitions & Permission Matrix
+
+| Permission / Action | Super Admin (`super_admin`) | Tenant Owner (`tenant_owner`) | Manager (`manager`) | Staff (`staff`) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Platform Management** (All Tenants/Plans) | ✅ | ❌ | ❌ | ❌ |
+| **Cross-Tenant Access** (via `X-Tenant-ID`) | ✅ | ❌ | ❌ | ❌ |
+| **Manage Tenant Profile / Settings** | ✅ | ✅ | ❌ | ❌ |
+| **Manage Subscriptions & Billing** | ✅ | ✅ | ❌ | ❌ |
+| **Create / Manage Tenant Users** | ✅ (All) | ✅ (In Tenant) | ✅ (Staff only) | ❌ |
+| **Assign Roles** | Any role | Owner, Manager, Staff | Staff only | ❌ |
+| **View Operational Data** (Customers, Products, Orders) | ✅ | ✅ | ✅ | ✅ |
+| **Create / Update Operational Data** | ✅ | ✅ | ✅ | ✅ |
+| **Delete Operational Data** | ✅ | ✅ | ✅ | ❌ |
+
+### 3. Policy-Based Authorization
+
+Native Laravel Policies enforce tenant-aware authorization rules:
+- **[`UserPolicy`](app/Policies/UserPolicy.php)**: Prevents cross-tenant user access; restricts staff from user management; prevents managers from escalating privileges to owner or super admin.
+- **[`CustomerPolicy`](app/Policies/CustomerPolicy.php)**: Ensures only users belonging to the same tenant can view/modify customer records.
+- **[`ProductPolicy`](app/Policies/ProductPolicy.php)**: Restricts product catalog management to the owning tenant.
+- **[`OrderPolicy`](app/Policies/OrderPolicy.php)**: Enforces tenant-scoped order visibility and restricts order deletion to Tenant Owners.
+- **[`TenantPolicy`](app/Policies/TenantPolicy.php)** & **[`SubscriptionPolicy`](app/Policies/SubscriptionPolicy.php)**: Protects tenant organization and billing settings.
+
+### 4. Tenant Security & Anti-Spoofing Rules
+
+1. **No Client-Supplied `tenant_id`**: The backend ignores any `tenant_id` passed in request bodies. The active `TenantContext` solely dictates tenant assignment.
+2. **Anti-IDOR Protection**: Eloquent models using `BelongsToTenant` apply `TenantScope` globally. A query like `Customer::find($id)` returns `null` if the ID belongs to another tenant.
+3. **Privilege Escalation Prevention**: Form Requests (`CreateTenantUserRequest`, `UpdateTenantUserRequest`) validate that the caller's role is strictly permitted to assign the requested role.
+
+---
+
 ## Subscription & Plan Limits
 
 The platform features a configurable, tier-based subscription engine enforced by a dedicated service layer ([`SubscriptionService`](app/Services/Subscription/SubscriptionService.php)) and middleware ([`EnforcePlanLimits`](app/Http/Middleware/EnforcePlanLimits.php)).
@@ -75,6 +130,61 @@ Limit checks are decoupled from controllers and enforced at the backend service/
 | **`TRIALING`** | **Allowed** | Full operational access during trial evaluation. |
 | **`PAST_DUE`** | **Blocked** | Read-only access; write operations blocked until billing is resolved (403). |
 | **`CANCELED`** | **Blocked** | Account terminated; all resource creation rejected (403). |
+
+---
+
+## API Documentation (Endpoints)
+
+### Authentication Endpoints
+
+#### 1. Login
+- **Endpoint**: `POST /api/v1/auth/login`
+- **Request Body**:
+  ```json
+  {
+      "email": "owner@apex.test",
+      "password": "password"
+  }
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+      "message": "Login successful.",
+      "user": {
+          "id": 2,
+          "tenant_id": 1,
+          "name": "Apex Owner",
+          "email": "owner@apex.test",
+          "role": "tenant_owner",
+          "role_label": "Tenant Owner",
+          "is_active": true,
+          "tenant": {
+              "id": 1,
+              "name": "Apex Dynamics",
+              "slug": "apex-dynamics"
+          }
+      },
+      "token": "1|abcdef123456...",
+      "token_type": "Bearer"
+  }
+  ```
+
+#### 2. Get Profile (`/me`)
+- **Endpoint**: `GET /api/v1/auth/me`
+- **Headers**: `Authorization: Bearer <token>`
+
+#### 3. Logout
+- **Endpoint**: `POST /api/v1/auth/logout`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response (200 OK)**: `{"message": "Logged out successfully."}`
+
+### User Management Endpoints (Tenant-Scoped)
+All endpoints require `Authorization: Bearer <token>`.
+- `GET /api/v1/users`: List users in tenant (or all users for Super Admin)
+- `POST /api/v1/users`: Create user in tenant (enforces role rules and plan user quotas)
+- `GET /api/v1/users/{id}`: View tenant user
+- `PUT /api/v1/users/{id}`: Update tenant user
+- `DELETE /api/v1/users/{id}`: Remove tenant user
 
 ---
 

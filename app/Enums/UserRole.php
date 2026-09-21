@@ -29,6 +29,16 @@ enum UserRole: string
         return $this === self::TENANT_OWNER;
     }
 
+    public function isManager(): bool
+    {
+        return $this === self::MANAGER;
+    }
+
+    public function isStaff(): bool
+    {
+        return $this === self::STAFF;
+    }
+
     public function canManageTenantUsers(): bool
     {
         return in_array($this, [self::SUPER_ADMIN, self::TENANT_OWNER, self::MANAGER], true);
@@ -37,5 +47,24 @@ enum UserRole: string
     public function canModifySubscription(): bool
     {
         return in_array($this, [self::SUPER_ADMIN, self::TENANT_OWNER], true);
+    }
+
+    public function canManagePlatform(): bool
+    {
+        return $this === self::SUPER_ADMIN;
+    }
+
+    /**
+     * Check if this role is authorized to assign the given target role.
+     * Prevents privilege escalation.
+     */
+    public function canAssignRole(UserRole $targetRole): bool
+    {
+        return match ($this) {
+            self::SUPER_ADMIN => true,
+            self::TENANT_OWNER => in_array($targetRole, [self::TENANT_OWNER, self::MANAGER, self::STAFF], true),
+            self::MANAGER => $targetRole === self::STAFF,
+            self::STAFF => false,
+        };
     }
 }

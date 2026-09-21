@@ -15,6 +15,13 @@ class EnsureTenantActive
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $user = $request->user();
+
+        // Platform administrators operating globally do not require a tenant context
+        if ($user && $user->isSuperAdmin() && ! app(TenantContext::class)->hasTenant()) {
+            return $next($request);
+        }
+
         $tenant = app(TenantContext::class)->getTenant();
 
         if (! $tenant) {
