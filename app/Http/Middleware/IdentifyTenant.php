@@ -70,6 +70,10 @@ class IdentifyTenant
             $tenantContext->setTenant($tenant);
         }
 
-        return $next($request);
+        try {
+            return $next($request);
+        } finally {
+            $tenantContext->clear();
+        }
     }
 }

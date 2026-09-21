@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthApiController;
+use App\Http\Controllers\Api\V1\CustomerApiController;
+use App\Http\Controllers\Api\V1\OrderApiController;
+use App\Http\Controllers\Api\V1\ProductApiController;
 use App\Http\Controllers\Api\V1\UserApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +38,9 @@ Route::prefix('v1')->group(function () {
         // ---------------------------------------------------------
         Route::middleware(['tenant.identify', 'tenant.active'])->group(function () {
             Route::apiResource('users', UserApiController::class)->names('api.v1.users');
+            Route::apiResource('customers', CustomerApiController::class)->names('api.v1.customers');
+            Route::apiResource('products', ProductApiController::class)->names('api.v1.products');
+            Route::apiResource('orders', OrderApiController::class)->names('api.v1.orders');
         });
     });
 });

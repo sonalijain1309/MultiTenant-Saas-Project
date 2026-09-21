@@ -179,12 +179,241 @@ Limit checks are decoupled from controllers and enforced at the backend service/
 - **Response (200 OK)**: `{"message": "Logged out successfully."}`
 
 ### User Management Endpoints (Tenant-Scoped)
-All endpoints require `Authorization: Bearer <token>`.
-- `GET /api/v1/users`: List users in tenant (or all users for Super Admin)
-- `POST /api/v1/users`: Create user in tenant (enforces role rules and plan user quotas)
-- `GET /api/v1/users/{id}`: View tenant user
-- `PUT /api/v1/users/{id}`: Update tenant user
-- `DELETE /api/v1/users/{id}`: Remove tenant user
+All endpoints require `Authorization: Bearer <token>` and execute under `tenant.identify` and `tenant.active`.
+- `GET /api/v1/users`: List users in tenant (or all users for Super Admin). Supports pagination.
+- `POST /api/v1/users`: Create user in tenant (enforces role hierarchy and plan user quotas).
+- `GET /api/v1/users/{id}`: View tenant user.
+- `PUT /api/v1/users/{id}`: Update tenant user.
+- `DELETE /api/v1/users/{id}`: Remove tenant user.
+
+---
+
+### Customer Management Endpoints (Tenant-Scoped)
+
+Manage customer relationships isolated to the active tenant.
+- `GET /api/v1/customers`: List customers with search and pagination.
+- `POST /api/v1/customers`: Create customer (enforces plan customer quota).
+- `GET /api/v1/customers/{customer}`: Show customer details.
+- `PUT /api/v1/customers/{customer}`: Full update of customer.
+- `PATCH /api/v1/customers/{customer}`: Partial update of customer.
+- `DELETE /api/v1/customers/{customer}`: Soft delete customer (Owners & Managers only).
+
+#### Customer Creation Example:
+- **Request (`POST /api/v1/customers`)**:
+  ```json
+  {
+      "name": "Global Logistics Corp",
+      "email": "contact@globallogistics.test",
+      "phone": "+1-555-0199",
+      "company_name": "Global Logistics LLC",
+      "address": "450 Industrial Parkway",
+      "city": "Atlanta",
+      "status": "active"
+  }
+  ```
+- **Response (`201 Created`)**:
+  ```json
+  {
+      "message": "Customer created successfully.",
+      "data": {
+          "id": 14,
+          "name": "Global Logistics Corp",
+          "email": "contact@globallogistics.test",
+          "phone": "+1-555-0199",
+          "company_name": "Global Logistics LLC",
+          "address": "450 Industrial Parkway",
+          "city": "Atlanta",
+          "status": "active",
+          "created_at": "2026-09-21T10:15:00.000000Z",
+          "updated_at": "2026-09-21T10:15:00.000000Z"
+      }
+  }
+  ```
+
+---
+
+### Product Management Endpoints (Tenant-Scoped)
+
+Catalog management for inventory, pricing, and availability.
+- `GET /api/v1/products`: List products with SKU/name search, availability filtering, and pagination.
+- `POST /api/v1/products`: Create product (enforces plan product quota and tenant SKU uniqueness).
+- `GET /api/v1/products/{product}`: View product details.
+- `PUT /api/v1/products/{product}`: Full update of product.
+- `PATCH /api/v1/products/{product}`: Partial update of product.
+- `DELETE /api/v1/products/{product}`: Soft delete product (Owners & Managers only).
+
+#### Product Creation Example:
+- **Request (`POST /api/v1/products`)**:
+  ```json
+  {
+      "sku": "APX-SDN-05",
+      "name": "Software Defined Gateway",
+      "description": "Enterprise software-defined networking edge node.",
+      "price": 149.00,
+      "cost_price": 45.00,
+      "stock": 20,
+      "is_available": true
+  }
+  ```
+- **Response (`201 Created`)**:
+  ```json
+  {
+      "message": "Product created successfully.",
+      "data": {
+          "id": 8,
+          "sku": "APX-SDN-05",
+          "name": "Software Defined Gateway",
+          "description": "Enterprise software-defined networking edge node.",
+          "price": 149,
+          "cost_price": 45,
+          "stock": 20,
+          "is_available": true,
+          "created_at": "2026-09-21T10:20:00.000000Z",
+          "updated_at": "2026-09-21T10:20:00.000000Z"
+      }
+  }
+  ```
+
+---
+
+### Order Management & OrderService Architecture
+
+Order placement involves financial calculations, inventory stock decrements, historical price snapshots, and multi-step transaction integrity handled by [`OrderService`](app/Services/Order/OrderService.php).
+
+#### Endpoints:
+- `GET /api/v1/orders`: List tenant orders with eager loading (`customer`, `items.product`), status filtering, customer filtering, order number search, date range filtering, and pagination.
+- `POST /api/v1/orders`: Create new order via `OrderService`.
+- `GET /api/v1/orders/{order}`: View order with customer and line items.
+- `PUT /api/v1/orders/{order}`: Update order notes or transition status.
+- `PATCH /api/v1/orders/{order}`: Partial update order status or notes.
+- `DELETE /api/v1/orders/{order}`: Soft delete order (Tenant Owners only).
+
+#### Order Creation Payload Structure:
+Clients supply only operational identifiers and quantities. Financial amounts, taxes, discounts, and order numbers are **never** accepted from client requests.
+
+- **Request (`POST /api/v1/orders`)**:
+  ```json
+  {
+      "customer_id": 1,
+      "notes": "Express deployment requested.",
+      "items": [
+          {
+              "product_id": 1,
+              "quantity": 2
+          },
+          {
+              "product_id": 2,
+              "quantity": 1
+          }
+      ]
+  }
+  ```
+
+- **Response (`201 Created`)**:
+  ```json
+  {
+      "message": "Order created successfully.",
+      "data": {
+          "id": 5,
+          "order_number": "ORD-APEX-202609-0003",
+          "status": "pending",
+          "status_label": "Pending Payment",
+          "subtotal": 117,
+          "tax_amount": 9.36,
+          "discount_amount": 0,
+          "total_amount": 126.36,
+          "notes": "Express deployment requested.",
+          "ordered_at": "2026-09-21T10:30:00.000000Z",
+          "customer": {
+              "id": 1,
+              "name": "Acme Corp",
+              "email": "acme@client-example.com"
+          },
+          "items": [
+              {
+                  "id": 9,
+                  "product_id": 1,
+                  "product_name": "Cloud Workspace License",
+                  "unit_price": 49,
+                  "quantity": 2,
+                  "subtotal": 98
+              },
+              {
+                  "id": 10,
+                  "product_id": 2,
+                  "product_name": "Security Shield Addon",
+                  "unit_price": 19,
+                  "quantity": 1,
+                  "subtotal": 19
+              }
+          ],
+          "created_at": "2026-09-21T10:30:00.000000Z",
+          "updated_at": "2026-09-21T10:30:00.000000Z"
+      }
+  }
+  ```
+
+---
+
+## Order Business Logic & Transaction Guarantees
+
+### 1. Order Total Calculation Logic
+
+To prevent floating-point inaccuracies and ensure deterministic billing, calculations occur server-side using fixed-precision rules:
+
+1. **Line Item Total**:
+   $$\text{line\_total} = \text{unit\_price} \times \text{quantity}$$
+   The `unit_price` is fetched directly from the database catalog at the moment of order creation and snapshotted onto the `order_items` table.
+2. **Order Subtotal**:
+   $$\text{subtotal} = \sum (\text{line\_total})$$
+3. **Taxes & Surcharges**:
+   Standard 8% tax rate applied to subtotal:
+   $$\text{tax\_amount} = \text{round}(\text{subtotal} \times 0.08, 2)$$
+4. **Final Order Total**:
+   $$\text{total\_amount} = \text{round}(\text{subtotal} + \text{tax\_amount} - \text{discount\_amount}, 2)$$
+
+### 2. Tenant-Safe Order Number Generation
+
+Order numbers follow a deterministic, human-readable, tenant-prefixed format:
+`ORD-{TENANT_PREFIX}-{YYYYMM}-{SEQUENCE}` (e.g., `ORD-APEX-202609-0001`).
+
+- Generated server-side inside `OrderService::generateOrderNumber()`.
+- Guaranteed uniqueness via composite database constraint `unique(['tenant_id', 'order_number'])`.
+- Concurrency collision protection via loop assertion before insert.
+
+### 3. Database Transaction & Atomic Rollbacks
+
+All mutations during order creation execute inside `DB::transaction(...)`:
+1. Customer existence and tenant ownership verified.
+2. Every item's product availability and inventory stock verified against requested cumulative quantities.
+3. Monthly subscription order quota verified.
+4. Order record created with status `pending`.
+5. Order line items created with immutable price snapshots.
+6. Inventory stock decremented atomically for each product.
+
+**Rollback Behavior**:
+If any product has insufficient stock or belongs to another tenant, the transaction throws a `ValidationException` (HTTP 422). The database automatically rolls back: no order is created, no order items are persisted, and previous inventory stocks remain untouched.
+
+### 4. Order Status Transition Rules
+
+Order statuses follow the `OrderStatus` PHP Enum:
+`DRAFT` $\rightarrow$ `PENDING` $\rightarrow$ `PROCESSING` $\rightarrow$ `COMPLETED` / `CANCELED`.
+
+- **Terminal States**: Orders in `COMPLETED` or `CANCELED` status cannot be transitioned to any other status.
+- **Role Restrictions**:
+  - Staff members can transition orders between operational states (`PENDING` $\rightarrow$ `PROCESSING`).
+  - Marking an order as `COMPLETED` or `CANCELED` requires **Manager**, **Tenant Owner**, or **Super Admin** privileges.
+- **Inventory Restoration on Cancellation**:
+  When an order transitions to `CANCELED`, `OrderService` automatically restores the inventory stock for all associated line items.
+
+### 5. Pagination, Filtering, and N+1 Prevention
+
+- **Safe Pagination**: Supported on `/customers`, `/products`, `/orders`, and `/users` via `?page=1&per_page=15` (enforcing a minimum of 1 and capped at a maximum of 100).
+- **Tenant-Scoped Search**:
+  - Customers: Filter by `search` (matches `name`, `email`, or `phone`).
+  - Products: Filter by `search` (matches `name` or `sku`) and `is_available` boolean.
+  - Orders: Filter by `status`, `customer_id`, `order_number`, and date range (`from_date`, `to_date`).
+- **N+1 Query Prevention**: Orders index eagerly loads relations (`Order::with(['customer', 'items'])`), fetching complete orders with relational data in 3 indexed queries regardless of page size.
 
 ---
 
