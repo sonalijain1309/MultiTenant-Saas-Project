@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\AuthWebController;
+use App\Http\Controllers\Web\CustomerWebController;
 use App\Http\Controllers\Web\DashboardController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -30,7 +31,8 @@ Route::middleware('guest')->group(function () {
 // -------------------------------------------------------------------------
 // Protected Authenticated Web Routes
 // -------------------------------------------------------------------------
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'tenant.identify', 'tenant.active'])->group(function () {
     Route::post('/logout', [AuthWebController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::resource('customers', CustomerWebController::class);
 });
