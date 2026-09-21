@@ -127,11 +127,11 @@ class DemoTenantSeeder extends Seeder
         );
         OrderItem::updateOrCreate(
             ['order_id' => $order1->id, 'product_id' => $apexProducts[0]->id],
-            ['product_name' => $apexProducts[0]->name, 'unit_price' => 49.00, 'quantity' => 1, 'subtotal' => 49.00]
+            ['tenant_id' => $apex->id, 'product_name' => $apexProducts[0]->name, 'unit_price' => 49.00, 'quantity' => 1, 'subtotal' => 49.00]
         );
         OrderItem::updateOrCreate(
             ['order_id' => $order1->id, 'product_id' => $apexProducts[1]->id],
-            ['product_name' => $apexProducts[1]->name, 'unit_price' => 19.00, 'quantity' => 1, 'subtotal' => 19.00]
+            ['tenant_id' => $apex->id, 'product_name' => $apexProducts[1]->name, 'unit_price' => 19.00, 'quantity' => 1, 'subtotal' => 19.00]
         );
 
         // Apex Order 2 (Stellar Tech)
@@ -150,7 +150,7 @@ class DemoTenantSeeder extends Seeder
         );
         OrderItem::updateOrCreate(
             ['order_id' => $order2->id, 'product_id' => $apexProducts[2]->id],
-            ['product_name' => $apexProducts[2]->name, 'unit_price' => 99.00, 'quantity' => 1, 'subtotal' => 99.00]
+            ['tenant_id' => $apex->id, 'product_name' => $apexProducts[2]->name, 'unit_price' => 99.00, 'quantity' => 1, 'subtotal' => 99.00]
         );
 
         // ---------------------------------------------------------------------
@@ -245,7 +245,7 @@ class DemoTenantSeeder extends Seeder
         );
         OrderItem::updateOrCreate(
             ['order_id' => $bwOrder1->id, 'product_id' => $blueWaveProducts[0]->id],
-            ['product_name' => $blueWaveProducts[0]->name, 'unit_price' => 29.00, 'quantity' => 2, 'subtotal' => 58.00]
+            ['tenant_id' => $blueWave->id, 'product_name' => $blueWaveProducts[0]->name, 'unit_price' => 29.00, 'quantity' => 2, 'subtotal' => 58.00]
         );
     }
 }

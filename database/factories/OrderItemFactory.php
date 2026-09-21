@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\Tenant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -20,6 +21,7 @@ class OrderItemFactory extends Factory
         $qty = fake()->numberBetween(1, 4);
 
         return [
+            'tenant_id' => Tenant::factory(),
             'order_id' => Order::factory(),
             'product_id' => Product::factory(),
             'product_name' => fake()->words(3, true),

@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('order_items', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('order_id')->constrained('orders')->cascadeOnDelete();
             $table->foreignId('product_id')->nullable()->constrained('products')->nullOnDelete();
             $table->string('product_name', 200);
@@ -18,6 +19,7 @@ return new class extends Migration
             $table->decimal('subtotal', 10, 2);
             $table->timestamps();
 
+            $table->index(['tenant_id', 'order_id']);
             $table->index(['order_id', 'product_id']);
         });
     }
