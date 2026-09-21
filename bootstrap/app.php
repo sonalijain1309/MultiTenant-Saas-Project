@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant.identify' => \App\Http\Middleware\IdentifyTenant::class,
             'tenant.active' => \App\Http\Middleware\EnsureTenantActive::class,
+            'plan.limit' => \App\Http\Middleware\EnforcePlanLimits::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

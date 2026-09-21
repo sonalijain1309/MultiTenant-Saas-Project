@@ -23,4 +23,9 @@ enum SubscriptionStatus: string
     {
         return in_array($this, [self::ACTIVE, self::TRIALING], true);
     }
+
+    public function canCreateResources(): bool
+    {
+        return $this->isValid();
+    }
 }
