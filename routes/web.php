@@ -3,6 +3,7 @@
 use App\Http\Controllers\Web\AuthWebController;
 use App\Http\Controllers\Web\CustomerWebController;
 use App\Http\Controllers\Web\DashboardController;
+use App\Http\Controllers\Web\ProductWebController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -35,4 +36,5 @@ Route::middleware(['auth', 'tenant.identify', 'tenant.active'])->group(function 
     Route::post('/logout', [AuthWebController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('customers', CustomerWebController::class);
+    Route::resource('products', ProductWebController::class);
 });
